@@ -1,0 +1,31 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      - echo "Installing dependencies"
+      - pip install awscli
+
+  pre_build:
+    commands:
+      - echo "Setting version"
+      - export VERSION=$(git rev-parse --short HEAD)
+
+  build:
+    commands:
+      - echo "Building project..."
+      - mkdir -p dist
+      - echo "Hello from Build ${VERSION}" > dist/index.html
+      - zip -r build_${VERSION}.zip dist appspec.yml scripts/
+
+  post_build:
+    commands:
+      - echo "Uploading to S3"
+      - aws s3 cp build_${VERSION}.zip s3://baskaran-build-artifacts/releases/
+      - echo "Creating deployment in CodeDeploy"
+      - aws deploy create-deployment \
+          --application-name cloud-deploy-app \
+          --deployment-group-name cloud-deploy-group \
+          --s3-location bucket=baskaran-build-artifacts,bundleType=zip,key=releases/build_${VERSION}.zip
